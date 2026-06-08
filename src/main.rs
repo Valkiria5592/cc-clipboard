@@ -22,18 +22,21 @@ use winit::{
     window::{Cursor, CursorIcon, Fullscreen, WindowAttributes, WindowId},
 };
 
-// ── tray icon: 16×16 solid blue-green square ──────────────────────────────────
+// ── tray icon: crab from logo.jpeg, center-cropped to 32×32 ──────────────────
 
 fn make_icon() -> tray_icon::Icon {
-    const S: usize = 16;
-    let mut rgba = vec![0u8; S * S * 4];
-    for i in 0..S * S {
-        rgba[i * 4] = 0x00; // R
-        rgba[i * 4 + 1] = 0xBB; // G
-        rgba[i * 4 + 2] = 0xFF; // B
-        rgba[i * 4 + 3] = 0xFF; // A
-    }
-    tray_icon::Icon::from_rgba(rgba, S as u32, S as u32).expect("icon")
+    use image::{imageops::FilterType, GenericImageView};
+    let bytes = include_bytes!("../assets/logo.jpeg");
+    let img = image::load_from_memory(bytes).expect("logo.jpeg");
+    let (w, h) = img.dimensions();
+    let size = w.min(h);
+    let x = (w - size) / 2;
+    let y = (h - size) / 2;
+    let rgba = img
+        .crop_imm(x, y, size, size)
+        .resize(32, 32, FilterType::Lanczos3)
+        .to_rgba8();
+    tray_icon::Icon::from_rgba(rgba.into_raw(), 32, 32).expect("icon")
 }
 
 // ── App state ─────────────────────────────────────────────────────────────────

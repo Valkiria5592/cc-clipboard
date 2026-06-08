@@ -11,11 +11,16 @@ softbuffer = "0.4"
 xcap = "0.2"
 arboard = "3"
 win-toast-notify = "0.1"
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dirs = "5"
 chrono = { version = "0.4", features = ["clock"] }
+
+[build-dependencies]
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+ico = "0.3"
+winres = "0.1"
 
 [profile.release]
 opt-level = "z"

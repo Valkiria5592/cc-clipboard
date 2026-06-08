@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/cc-clipboard.jpeg" alt="cc-clipboard" width="720">
+</p>
+
 # cc-clipboard
 
 A lightweight Windows system tray app that captures a screen region with a drag selection, saves it as a PNG, and **automatically copies the full file path to your clipboard** — so you can paste it straight into any tool that accepts image paths (Claude Code, terminals, chat apps, etc.).
