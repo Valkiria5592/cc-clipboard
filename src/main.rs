@@ -99,25 +99,27 @@ impl App {
         self.overlay = Some(OverlayState::new(window, screenshot, w, h));
     }
 
-    fn finish_capture(&mut self, img: image::RgbaImage, x1: u32, y1: u32, x2: u32, y2: u32) {
+    fn finish_capture(&self, img: image::RgbaImage, x1: u32, y1: u32, x2: u32, y2: u32) {
         let lx = x1.min(x2);
         let rx = x1.max(x2);
         let ty = y1.min(y2);
         let by = y1.max(y2);
 
-        // Ignore accidental clicks (< 5px in either dimension)
         if rx.saturating_sub(lx) < 5 || by.saturating_sub(ty) < 5 {
             return;
         }
 
-        if let Some(path) =
-            capture::crop_and_save(&img, lx, ty, rx - lx, by - ty, &self.config)
-        {
-            clipboard::copy_path(&path);
-            if self.config.notify {
-                notification::notify_saved(&path);
+        // Run crop + clipboard + toast on a background thread so the overlay
+        // window can close and repaint immediately without blocking the message pump.
+        let config = self.config.clone();
+        std::thread::spawn(move || {
+            if let Some(path) = capture::crop_and_save(&img, lx, ty, rx - lx, by - ty, &config) {
+                clipboard::copy_path(&path);
+                if config.notify {
+                    notification::notify_saved(&path);
+                }
             }
-        }
+        });
     }
 
     fn open_folder(&self) {
