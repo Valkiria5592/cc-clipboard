@@ -55,7 +55,7 @@ struct App {
     // Kept alive to maintain hotkey registration
     _hotkey_manager: Option<GlobalHotKeyManager>,
     hotkey_id: u32,
-    overlay: Option<OverlayState>,
+    overlays: Vec<OverlayState>,
 }
 
 impl App {
@@ -66,40 +66,55 @@ impl App {
             menu_ids: None,
             _hotkey_manager: None,
             hotkey_id: 0,
-            overlay: None,
+            overlays: Vec::new(),
         }
     }
 
     fn start_capture(&mut self, event_loop: &ActiveEventLoop) {
-        if self.overlay.is_some() {
+        if !self.overlays.is_empty() {
             return;
         }
-        let Some((screenshot, mon_w, mon_h)) = capture::capture_primary() else {
+
+        let captures = capture::capture_all();
+        if captures.is_empty() {
             return;
-        };
+        }
 
-        let attrs = WindowAttributes::default()
-            .with_title("cc-clipboard-overlay")
-            .with_decorations(false)
-            .with_resizable(false)
-            .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
-            .with_fullscreen(Some(Fullscreen::Borderless(None)));
+        // Build winit monitor list for matching by position
+        let winit_monitors: Vec<_> = event_loop.available_monitors().collect();
 
-        let Ok(window) = event_loop.create_window(attrs) else {
-            return;
-        };
-        window.set_cursor(Cursor::Icon(CursorIcon::Crosshair));
-        let window = Arc::new(window);
+        for (img, xcap_x, xcap_y, mon_w, mon_h) in captures {
+            // Match xcap monitor to winit monitor by top-left position
+            let winit_mon = winit_monitors
+                .iter()
+                .find(|m| {
+                    let pos = m.position();
+                    pos.x == xcap_x && pos.y == xcap_y
+                })
+                .cloned();
 
-        // Use the actual window inner_size in case it differs from xcap dimensions
-        let inner = window.inner_size();
-        let (w, h) = if inner.width > 0 && inner.height > 0 {
-            (inner.width, inner.height)
-        } else {
-            (mon_w, mon_h)
-        };
+            let attrs = WindowAttributes::default()
+                .with_title("cc-clipboard-overlay")
+                .with_decorations(false)
+                .with_resizable(false)
+                .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
+                .with_fullscreen(Some(Fullscreen::Borderless(winit_mon)));
 
-        self.overlay = Some(OverlayState::new(window, screenshot, w, h));
+            let Ok(window) = event_loop.create_window(attrs) else {
+                continue;
+            };
+            window.set_cursor(Cursor::Icon(CursorIcon::Crosshair));
+            let window = Arc::new(window);
+
+            let inner = window.inner_size();
+            let (w, h) = if inner.width > 0 && inner.height > 0 {
+                (inner.width, inner.height)
+            } else {
+                (mon_w, mon_h)
+            };
+
+            self.overlays.push(OverlayState::new(window, img, w, h));
+        }
     }
 
     fn finish_capture(&self, img: image::RgbaImage, x1: u32, y1: u32, x2: u32, y2: u32) {
@@ -173,19 +188,19 @@ impl ApplicationHandler for App {
 
     fn window_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
-        _id: WindowId,
+        _event_loop: &ActiveEventLoop,
+        id: WindowId,
         event: WindowEvent,
     ) {
         match event {
             WindowEvent::RedrawRequested => {
-                if let Some(ov) = &mut self.overlay {
+                if let Some(ov) = self.overlays.iter_mut().find(|o| o.window.id() == id) {
                     ov.draw();
                 }
             }
 
             WindowEvent::CursorMoved { position, .. } => {
-                if let Some(ov) = &mut self.overlay {
+                if let Some(ov) = self.overlays.iter_mut().find(|o| o.window.id() == id) {
                     ov.drag_current = Some((position.x as u32, position.y as u32));
                     ov.window.request_redraw();
                 }
@@ -194,24 +209,22 @@ impl ApplicationHandler for App {
             WindowEvent::MouseInput { button, state, .. } => {
                 match (button, state) {
                     (MouseButton::Left, ElementState::Pressed) => {
-                        if let Some(ov) = &mut self.overlay {
+                        if let Some(ov) = self.overlays.iter_mut().find(|o| o.window.id() == id) {
                             ov.drag_start = ov.drag_current;
                         }
                     }
                     (MouseButton::Left, ElementState::Released) => {
-                        // Extract everything from overlay before dropping it
-                        let result = self.overlay.take().and_then(|ov| {
-                            let s = ov.drag_start?;
-                            let c = ov.drag_current?;
-                            Some((ov.screenshot, s.0, s.1, c.0, c.1))
-                        });
-                        if let Some((img, x1, y1, x2, y2)) = result {
-                            self.finish_capture(img, x1, y1, x2, y2);
+                        if let Some(idx) = self.overlays.iter().position(|o| o.window.id() == id) {
+                            let ov = self.overlays.remove(idx);
+                            self.overlays.clear(); // close all other monitor overlays
+                            if let (Some(s), Some(c)) = (ov.drag_start, ov.drag_current) {
+                                self.finish_capture(ov.screenshot, s.0, s.1, c.0, c.1);
+                            }
                         }
                     }
-                    // Right-click cancels
+                    // Right-click cancels all overlays
                     (MouseButton::Right, ElementState::Pressed) => {
-                        self.overlay = None;
+                        self.overlays.clear();
                     }
                     _ => {}
                 }
@@ -220,21 +233,16 @@ impl ApplicationHandler for App {
             WindowEvent::KeyboardInput { event: key, .. } => {
                 use winit::keyboard::{KeyCode, PhysicalKey};
                 if key.physical_key == PhysicalKey::Code(KeyCode::Escape) {
-                    self.overlay = None;
+                    self.overlays.clear();
                 }
             }
 
-            // Close overlay if it loses focus (e.g. Alt+Tab)
-            WindowEvent::Focused(false) => {
-                self.overlay = None;
-            }
+            // Focused(false) is intentionally not handled: clicking on the overlay of
+            // a second monitor fires Focused(false) on the first, which would wrongly
+            // close everything before the user even starts selecting.
 
             WindowEvent::CloseRequested => {
-                if self.overlay.is_some() {
-                    self.overlay = None;
-                } else {
-                    event_loop.exit();
-                }
+                self.overlays.clear();
             }
 
             _ => {}
@@ -262,8 +270,8 @@ impl ApplicationHandler for App {
             }
         }
 
-        // Use Poll when overlay is open (responsive redraws), Wait otherwise (low CPU)
-        if self.overlay.is_some() {
+        // Use Poll when overlays are open (responsive redraws), Wait otherwise (low CPU)
+        if !self.overlays.is_empty() {
             event_loop.set_control_flow(ControlFlow::Poll);
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);

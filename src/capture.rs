@@ -2,16 +2,18 @@ use crate::config::Config;
 use image::{DynamicImage, RgbaImage};
 use std::path::PathBuf;
 
-pub fn capture_primary() -> Option<(RgbaImage, u32, u32)> {
-    let monitors = xcap::Monitor::all().ok()?;
-    let monitor = monitors
+/// Captures every connected monitor. Returns (image, x, y, width, height) per monitor.
+pub fn capture_all() -> Vec<(RgbaImage, i32, i32, u32, u32)> {
+    let Ok(monitors) = xcap::Monitor::all() else {
+        return vec![];
+    };
+    monitors
         .iter()
-        .find(|m| m.is_primary())
-        .or_else(|| monitors.first())?;
-    let w = monitor.width();
-    let h = monitor.height();
-    let img = monitor.capture_image().ok()?;
-    Some((img, w, h))
+        .filter_map(|m| {
+            let img = m.capture_image().ok()?;
+            Some((img, m.x(), m.y(), m.width(), m.height()))
+        })
+        .collect()
 }
 
 pub fn crop_and_save(img: &RgbaImage, x: u32, y: u32, w: u32, h: u32, config: &Config) -> Option<PathBuf> {
